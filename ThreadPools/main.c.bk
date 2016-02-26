@@ -1,0 +1,61 @@
+#include <net/if.h>
+#include <netinet/in.h>
+
+#ifdef FreeBSD
+#include <net/if_var.h>
+#include <netinet/in_var.h>
+#endif
+
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <signal.h>
+#include <errno.h>
+#include <dirent.h>
+#include <pthread.h>
+
+#include "queue.h"
+#include "mpool.h"
+#include "memwatch.h"
+
+typedef  struct  taskNode{
+        int sockfd;
+}taskNode;
+
+void printsd(void *task)
+{
+	taskNode *node=(taskNode*)task;
+	printf("pthread=%d, sockfd=%d, address=%p\n",(int)pthread_self(),node->sockfd,task);
+	free(task); //hi,this free must be do!!!
+	sleep(1);
+	return;
+}
+
+void mInterface()
+{
+	int i;
+
+	for(i=0;i<50000;i++){
+                taskNode *task=NULL;
+                task=(taskNode*)malloc(sizeof(taskNode));
+                task->sockfd=i;
+                manager_addTaskToTaskpool((void*)task);
+                //if(i>10000) sleep(5);
+                //printf("Now have %d task wait for do...\n",taskpool->t_curNum);
+        }	
+}
+
+
+int main ( int argc, char * argv[] )
+{
+	int run_mtid,pool_mtid,main_mtid;
+	
+	managerInit(10,10,6,5,(void*)printsd);	
+	run_mtid=managerRun();
+	pool_mtid=managerPool();
+	main_mtid=managerInterface(mInterface);
+	managerDestroy(run_mtid,pool_mtid,main_mtid);
+
+	printf("Main will exit(0)...\n");
+        exit(0);
+
+}
